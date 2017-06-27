@@ -9,12 +9,39 @@
 # Made by brainsandwich
 # Free of use
 
-import json, os, sys, subprocess
+import json, os, sys, subprocess, shutil
+
+def update_self():
+	import stat
+	repo = '.tmp'
+
+	os.makedirs(repo)
+	subprocess.call(['git', 'init', repo])
+	subprocess.call(['git', 'remote', 'add', 'origin', 'https://github.com/brainsandwich/depo.git'], cwd=repo)
+	subprocess.call(['git', 'checkout', '-b', 'target'], cwd=repo)
+	subprocess.call(['git', 'fetch'], cwd=repo)
+	subprocess.call(['git', 'reset', '--hard', 'origin/master'], cwd=repo)
+
+	self_script = open(os.path.realpath(__file__ + 'd'), 'w')
+	new_script = open(os.path.join(repo, 'depo.py'), 'r')
+	for l in new_script:
+		self_script.write(l)
+
+	self_script.close()
+	new_script.close()
+
+	def set_rw(operation, name, exc):
+	    os.chmod(name, stat.S_IWRITE)
+	    operation(name)
+	shutil.rmtree(os.path.abspath(repo), onerror=set_rw)
+	# os.removedirs(repo)
+
+update_self()
 
 # init
 script_path = os.path.dirname(os.path.realpath(__file__))
 config_path = os.path.join(script_path, sys.argv[1] if len(sys.argv) > 1 else 'deps.json')
-print('> Deps fetcher 1.0')
+print('> Depo 1.0')
 print('> Configuration file : ' + config_path)
 if not os.path.exists(config_path):
 	sys.exit('! No config found ! Aborting ...')
