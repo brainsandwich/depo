@@ -39,6 +39,7 @@ def getpack(root, name, origin, branch, version):
 	subprocess.call(['git', 'fetch'], cwd=root, stdout=console_out, stderr=console_out)
 	subprocess.call(['git', 'reset', '--hard', remote_target], cwd=root, stdout=console_out, stderr=console_out)
 	print('* Package \'' + name + '\' fetched ; with branch / version \'' + target + '\'')
+	sys.stdout.flush()
 	return
 
 # Self update function
@@ -47,12 +48,6 @@ def update_self():
 	repo = 'depo'
 
 	getpack(repo, repo, 'https://github.com/brainsandwich/depo.git', 'master', '')
-
-	# subprocess.call(['git', 'clone', 'https://github.com/brainsandwich/depo.git'])
-	# if not os.path.isdir(repo):
-	# 	print('! Couldn\'t fetch Depo script update from github ...')
-	# 	return
-
 	lastupdate = subprocess.check_output(['git', 'show', '-s', '--format=\"%ci\"'], cwd=repo)
 
 	self_script = open(os.path.realpath(__file__), 'w')
@@ -70,6 +65,7 @@ def update_self():
 
 	print('> Depo script correctly updated !')
 	print('> Last update : ' + lastupdate)
+	sys.stdout.flush()
 	return
 
 
@@ -86,6 +82,7 @@ console_out = sys.stdout if args.verbose else open(os.devnull, 'w')
 # Update if required
 if args.update:
 	update_self()
+	sys.exit()
 
 # init
 script_path = os.path.dirname(os.path.realpath(__file__))
