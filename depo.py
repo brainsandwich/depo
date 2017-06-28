@@ -11,15 +11,49 @@
 
 import json, os, sys, subprocess, shutil, argparse
 
+# 
+def getpack(root, name, origin, branch, version):
+	target = version if len(version) != 0 else branch
+	remote_target = 'origin/' + target if len(version) == 0 else target
+
+	# init repo in root dir
+	if not os.path.exists(root):
+		os.makedirs(root)
+		subprocess.call(['git', 'init', root], stdout=console_out, stderr=console_out)
+		subprocess.call(['git', 'remote', 'add', 'origin', origin], cwd=root, stdout=console_out, stderr=console_out)
+		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=root, stdout=console_out, stderr=console_out)
+	else:
+		try:
+			diff = subprocess.check_output(['git', 'diff', remote_target, 'target'], cwd=root, stderr=console_out)
+		except Exception as e:
+			print('! Failed to get diff with remote target for package \'' + name + '\' ; branch / version \'' + target + '\' may not exist')
+			return
+
+		if len(diff) == 0:
+			print('* Package \'' + name + '\' already fetched ; with branch / version \'' + target + '\'')
+			return
+		else:
+			print('* Package \'' + name + '\' has changed')
+
+	# fetch branch / version (this will effectively download stuff)
+	subprocess.call(['git', 'fetch'], cwd=root, stdout=console_out, stderr=console_out)
+	subprocess.call(['git', 'reset', '--hard', remote_target], cwd=root, stdout=console_out, stderr=console_out)
+	print('* Package \'' + name + '\' fetched ; with branch / version \'' + target + '\'')
+	return
+
 # Self update function
 def update_self():
 	import stat
 	repo = 'depo'
 
-	subprocess.call(['git', 'clone', 'https://github.com/brainsandwich/depo.git'])
-	if not os.path.isdir(repo):
-		print 'Couldn\'t fetch update from github ...' 
-		return False
+	getpack(repo, repo, 'https://github.com/brainsandwich/depo.git', 'master', '')
+
+	# subprocess.call(['git', 'clone', 'https://github.com/brainsandwich/depo.git'])
+	# if not os.path.isdir(repo):
+	# 	print('! Couldn\'t fetch Depo script update from github ...')
+	# 	return
+
+	lastupdate = subprocess.check_output(['git', 'show', '-s', '--format=\"%ci\"'], cwd=repo)
 
 	self_script = open(os.path.realpath(__file__), 'w')
 	new_script = open(os.path.join(repo, 'depo.py'), 'r')
@@ -33,7 +67,11 @@ def update_self():
 	    os.chmod(name, stat.S_IWRITE)
 	    operation(name)
 	shutil.rmtree(os.path.abspath(repo), onerror=set_rw)
-	return True
+
+	print('> Depo script correctly updated !')
+	print('> Last update : ' + lastupdate)
+	return
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
@@ -43,10 +81,7 @@ parser.add_argument('-i', '--input', help='path to the configuration file, defau
 parser.add_argument('-o', '--output', help='path to the dependencies installation folder, default is \'./external\'')
 args = parser.parse_args()
 
-if args.verbose:
-	console_out = sys.stdout
-else:
-	console_out = open(os.devnull, 'w')
+console_out = sys.stdout if args.verbose else open(os.devnull, 'w')
 
 # Update if required
 if args.update:
@@ -91,29 +126,6 @@ for package in config['packages']:
 	target = version if len(version) != 0 else branch
 	remote_target = 'origin/' + target if len(version) == 0 else target
 
-	# init repo in repo_dir
-	if not os.path.exists(repo_dir):
-		os.makedirs(repo_dir)
-		subprocess.call(['git', 'init', repo_dir], stdout=console_out, stderr=console_out)
-		subprocess.call(['git', 'remote', 'add', 'origin', origin], cwd=repo_dir, stdout=console_out, stderr=console_out)
-		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=repo_dir, stdout=console_out, stderr=console_out)
-	else:
-		try:
-			diff = subprocess.check_output(['git', 'diff', remote_target, 'target'], cwd=repo_dir, stderr=console_out)
-		except Exception as e:
-			print('! Failed to get diff with remote target for package \'' + name + '\' ; branch / version \'' + target + '\' may not exist')
-			continue
-
-		if len(diff) == 0:
-			print('* Package \'' + name + '\' already fetched ; with branch / version \'' + target + '\'')
-			continue
-		else:
-			print('* Package \'' + name + '\' has changed')
-
-	# fetch branch / version (this will effectively download stuff)
-	subprocess.call(['git', 'fetch'], cwd=repo_dir, stdout=console_out, stderr=console_out)
-	subprocess.call(['git', 'reset', '--hard', remote_target], cwd=repo_dir, stdout=console_out, stderr=console_out)
-
-	print('* Package \'' + name + '\' fetched ; with branch / version \'' + target + '\'')
+	getpack(repo_dir, name, origin, branch, version)
 
 print('> Dependencies ready')
