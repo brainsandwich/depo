@@ -24,6 +24,7 @@ def getpack(root, name, origin, branch, version):
 		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=root, stdout=console_out, stderr=console_out)
 	else:
 		try:
+			subprocess.call(['git', 'fetch'], cwd=root, stdout=console_out, stderr=console_out)
 			diff = subprocess.check_output(['git', 'diff', remote_target, 'target'], cwd=root, stderr=console_out)
 		except Exception as e:
 			print('! Failed to get diff with remote target for package \'' + name + '\' ; branch / version \'' + target + '\' may not exist')
@@ -31,15 +32,10 @@ def getpack(root, name, origin, branch, version):
 
 		if len(diff) == 0:
 			print('* Package \'' + name + '\' already fetched ; with branch / version \'' + target + '\'')
-			return
 		else:
 			print('* Package \'' + name + '\' has changed')
-
-	# fetch branch / version (this will effectively download stuff)
-	subprocess.call(['git', 'fetch'], cwd=root, stdout=console_out, stderr=console_out)
-	subprocess.call(['git', 'reset', '--hard', remote_target], cwd=root, stdout=console_out, stderr=console_out)
-	print('* Package \'' + name + '\' fetched ; with branch / version \'' + target + '\'')
-	sys.stdout.flush()
+			subprocess.call(['git', 'reset', '--hard', remote_target], cwd=root, stdout=console_out, stderr=console_out)
+			
 	return
 
 # Self update function
