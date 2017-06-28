@@ -38,7 +38,9 @@ def update_self():
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
 parser.add_argument('-u', '--update', help='update this script', action='store_true')
-parser.add_argument('-c', '--cfg', help='path to the configuration file, default is \'./deps.json\'')
+parser.add_argument('-c', '--clear', help='clear dependencies folder before fetching', action='store_true')
+parser.add_argument('-i', '--input', help='path to the configuration file, default is \'./deps.json\'')
+parser.add_argument('-o', '--output', help='path to the dependencies installation folder, default is \'./external\'')
 args = parser.parse_args()
 
 if args.verbose:
@@ -52,7 +54,7 @@ if args.update:
 
 # init
 script_path = os.path.dirname(os.path.realpath(__file__))
-config_path = args.cfg if args.cfg else 'deps.json'
+config_path = args.input if args.input else 'deps.json'
 print('> Depo 1.0')
 print('> Configuration file : ' + config_path)
 if not os.path.exists(config_path):
@@ -63,8 +65,15 @@ config_file = open(config_path, 'r')
 config = json.loads(config_file.read())
 config_file.close()
 
+# rmdir before doing anything
+deps_path = args.output if args.output else 'external'
+if args.clear and os.path.exists(deps_path):
+	def set_rw(operation, name, exc):
+		os.chmod(name, stat.S_IWRITE)
+		operation(name)
+	shutil.rmtree(os.path.abspath(deps_path), onerror=set_rw)
+
 # create dir
-deps_path = config['path'] if 'path' in config else 'external'
 print('> Installing dependencies in ' + deps_path)
 if not os.path.exists(deps_path):
     os.makedirs(deps_path)
@@ -79,6 +88,8 @@ for package in config['packages']:
 	# one can either provide a version or a branch
 	version = package['version'] if 'version' in package else ''
 	branch = package['branch'] if 'branch' in package else ''
+	target = version if len(version) != 0 else branch
+	remote_target = 'origin/' + target if len(version) == 0 else target
 
 	# init repo in repo_dir
 	if not os.path.exists(repo_dir):
@@ -86,14 +97,23 @@ for package in config['packages']:
 		subprocess.call(['git', 'init', repo_dir], stdout=console_out, stderr=console_out)
 		subprocess.call(['git', 'remote', 'add', 'origin', origin], cwd=repo_dir, stdout=console_out, stderr=console_out)
 		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=repo_dir, stdout=console_out, stderr=console_out)
+	else:
+		try:
+			diff = subprocess.check_output(['git', 'diff', remote_target, 'target'], cwd=repo_dir, stderr=console_out)
+		except Exception as e:
+			print('! Failed to get diff with remote target for package \'' + name + '\' ; branch / version \'' + target + '\' may not exist')
+			continue
+
+		if len(diff) == 0:
+			print('* Package \'' + name + '\' already fetched ; with branch / version \'' + target + '\'')
+			continue
+		else:
+			print('* Package \'' + name + '\' has changed')
 
 	# fetch branch / version (this will effectively download stuff)
 	subprocess.call(['git', 'fetch'], cwd=repo_dir, stdout=console_out, stderr=console_out)
-	if version != '':
-		subprocess.call(['git', 'reset', '--hard', version], cwd=repo_dir, stdout=console_out, stderr=console_out)
-		print('* Package \'' + name + '\' fetched ; with version ' + version)
-	else:
-		subprocess.call(['git', 'reset', '--hard', 'origin/' + branch], cwd=repo_dir, stdout=console_out, stderr=console_out)
-		print('* Package \'' + name + '\' fetched ; on branch ' + branch)
+	subprocess.call(['git', 'reset', '--hard', remote_target], cwd=repo_dir, stdout=console_out, stderr=console_out)
+
+	print('* Package \'' + name + '\' fetched ; with branch / version \'' + target + '\'')
 
 print('> Dependencies ready')
