@@ -9,20 +9,19 @@
 # Made by brainsandwich
 # Free of use
 
-import json, os, sys, subprocess, shutil
+import json, os, sys, subprocess, shutil, argparse
 
+# Self update function
 def update_self():
 	import stat
-	repo = '.tmp'
+	repo = 'depo'
 
-	os.makedirs(repo)
-	subprocess.call(['git', 'init', repo])
-	subprocess.call(['git', 'remote', 'add', 'origin', 'https://github.com/brainsandwich/depo.git'], cwd=repo)
-	subprocess.call(['git', 'checkout', '-b', 'target'], cwd=repo)
-	subprocess.call(['git', 'fetch'], cwd=repo)
-	subprocess.call(['git', 'reset', '--hard', 'origin/master'], cwd=repo)
+	subprocess.call(['git', 'clone', 'https://github.com/brainsandwich/depo.git'])
+	if not os.path.isdir(repo):
+		print 'Couldn\'t fetch update from github ...' 
+		return False
 
-	self_script = open(os.path.realpath(__file__ + 'd'), 'w')
+	self_script = open(os.path.realpath(__file__), 'w')
 	new_script = open(os.path.join(repo, 'depo.py'), 'r')
 	for l in new_script:
 		self_script.write(l)
@@ -34,13 +33,26 @@ def update_self():
 	    os.chmod(name, stat.S_IWRITE)
 	    operation(name)
 	shutil.rmtree(os.path.abspath(repo), onerror=set_rw)
-	# os.removedirs(repo)
+	return True
 
-update_self()
+parser = argparse.ArgumentParser()
+parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
+parser.add_argument('-u', '--update', help='update this script', action='store_true')
+parser.add_argument('-c', '--cfg', help='path to the configuration file, default is \'./deps.json\'')
+args = parser.parse_args()
+
+if args.verbose:
+	console_out = sys.stdout
+else:
+	console_out = open(os.devnull, 'w')
+
+# Update if required
+if args.update:
+	update_self()
 
 # init
 script_path = os.path.dirname(os.path.realpath(__file__))
-config_path = os.path.join(script_path, sys.argv[1] if len(sys.argv) > 1 else 'deps.json')
+config_path = args.cfg if args.cfg else 'deps.json'
 print('> Depo 1.0')
 print('> Configuration file : ' + config_path)
 if not os.path.exists(config_path):
@@ -52,8 +64,8 @@ config = json.loads(config_file.read())
 config_file.close()
 
 # create dir
-deps_path = os.path.join(script_path, config['path'] if 'path' in config else 'external')
-print('> Installing dependencies in ' + deps_path + ' ...')
+deps_path = config['path'] if 'path' in config else 'external'
+print('> Installing dependencies in ' + deps_path)
 if not os.path.exists(deps_path):
     os.makedirs(deps_path)
 
@@ -61,14 +73,8 @@ if not os.path.exists(deps_path):
 for package in config['packages']:
 	sys.stdout.flush()
 	name = package['name']
-	repo_dir = os.path.join(deps_path, name)
-	print('> Fetching package ' + name + ' in ' + repo_dir)
-
-	# if origin is not a url, it's a filepath and
-	# we need its absolute value
 	origin = package['origin']
-	if not origin[:4] == 'http':
-		origin = os.path.join(script_path, origin)
+	repo_dir = os.path.join(deps_path, name)
 
 	# one can either provide a version or a branch
 	version = package['version'] if 'version' in package else ''
@@ -77,13 +83,17 @@ for package in config['packages']:
 	# init repo in repo_dir
 	if not os.path.exists(repo_dir):
 		os.makedirs(repo_dir)
-		subprocess.call(['git', 'init', repo_dir])
-		subprocess.call(['git', 'remote', 'add', 'origin', origin], cwd=repo_dir)
-		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=repo_dir)
+		subprocess.call(['git', 'init', repo_dir], stdout=console_out, stderr=console_out)
+		subprocess.call(['git', 'remote', 'add', 'origin', origin], cwd=repo_dir, stdout=console_out, stderr=console_out)
+		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=repo_dir, stdout=console_out, stderr=console_out)
 
 	# fetch branch / version (this will effectively download stuff)
-	subprocess.call(['git', 'fetch'], cwd=repo_dir)
+	subprocess.call(['git', 'fetch'], cwd=repo_dir, stdout=console_out, stderr=console_out)
 	if version != '':
-		subprocess.call(['git', 'reset', '--hard', version], cwd=repo_dir)
+		subprocess.call(['git', 'reset', '--hard', version], cwd=repo_dir, stdout=console_out, stderr=console_out)
+		print('* Package \'' + name + '\' fetched ; with version ' + version)
 	else:
-		subprocess.call(['git', 'reset', '--hard', 'origin/' + branch], cwd=repo_dir)
+		subprocess.call(['git', 'reset', '--hard', 'origin/' + branch], cwd=repo_dir, stdout=console_out, stderr=console_out)
+		print('* Package \'' + name + '\' fetched ; on branch ' + branch)
+
+print('> Dependencies ready')
