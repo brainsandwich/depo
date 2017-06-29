@@ -19,7 +19,6 @@ def getpack(root, name, origin, branch, version, force):
 	# init repo in root dir
 	if not os.path.exists(root):
 		os.makedirs(root)
-		print 'mkdir ' + root
 		subprocess.call(['git', 'clone', '-b', target, '--single-branch', '--depth', '1', origin, root], stdout=console_out, stderr=console_out)
 		subprocess.call(['git', 'checkout', '-b', 'target'], cwd=root, stdout=console_out, stderr=console_out)
 	elif force:
