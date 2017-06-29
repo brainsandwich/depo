@@ -34,7 +34,7 @@ def update_self():
 	import stat
 	repo = 'depo'
 
-	getpack(repo, repo, 'https://github.com/brainsandwich/depo.git', 'master', '')
+	getpack(repo, repo, 'https://github.com/brainsandwich/depo.git', 'master', '', True)
 	lastupdate = subprocess.check_output(['git', 'show', '-s', '--format=\"%ci\"'], cwd=repo)
 
 	self_script = open(os.path.realpath(__file__), 'w')
@@ -75,7 +75,7 @@ if args.update:
 # init
 script_path = os.path.dirname(os.path.realpath(__file__))
 config_path = args.input if args.input else 'deps.json'
-print('> Depo 1.0')
+print('> Depo 1.1')
 print('> Configuration file : ' + config_path)
 if not os.path.exists(config_path):
 	sys.exit('! No config found ! Aborting ...')
