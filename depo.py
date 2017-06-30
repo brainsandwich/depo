@@ -58,12 +58,14 @@ def update_self():
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v', '--verbose', help='verbose output', action='store_true')
+parser.add_argument('-r', '--recurse', help='fetches dependencies of dependencies', action='store_true')
 parser.add_argument('-u', '--update', help='update this script', action='store_true')
 parser.add_argument('-c', '--clear', help='clear dependencies folder before fetching', action='store_true')
 parser.add_argument('-f', '--force', help='forces redownload of packages', action='store_true')
 parser.add_argument('-i', '--input', help='path to the configuration file, default is \'./deps.json\'')
 parser.add_argument('-o', '--output', help='path to the dependencies installation folder, default is \'./external\'')
 args = parser.parse_args()
+sys.stdout.flush()
 
 console_out = sys.stdout if args.verbose else open(os.devnull, 'w')
 
@@ -73,10 +75,11 @@ if args.update:
 	sys.exit()
 
 # init
-script_path = os.path.dirname(os.path.realpath(__file__))
 config_path = args.input if args.input else 'deps.json'
-print('> Depo 1.1')
-print('> Configuration file : ' + config_path)
+root_path = os.path.dirname(config_path)
+
+print('> Depo 1.2')
+print('> Configuration file : ' + os.path.abspath(config_path))
 if not os.path.exists(config_path):
 	sys.exit('! No config found ! Aborting ...')
 
@@ -86,7 +89,7 @@ config = json.loads(config_file.read())
 config_file.close()
 
 # rmdir before doing anything
-deps_path = args.output if args.output else 'external'
+deps_path = os.path.join(root_path, args.output if args.output else 'external')
 if args.clear and os.path.exists(deps_path):
 	def set_rw(operation, name, exc):
 		os.chmod(name, stat.S_IWRITE)
@@ -94,7 +97,7 @@ if args.clear and os.path.exists(deps_path):
 	shutil.rmtree(os.path.abspath(deps_path), onerror=set_rw)
 
 # create dir
-print('> Installing dependencies in ' + deps_path)
+print('> Installing dependencies in ' + os.path.abspath(deps_path))
 if not os.path.exists(deps_path):
     os.makedirs(deps_path)
 
@@ -112,5 +115,12 @@ for package in config['packages']:
 	remote_target = 'origin/' + target if len(version) == 0 else target
 
 	getpack(repo_dir, name, origin, branch, version, args.force)
+
+	if args.recurse and os.path.exists(os.path.join(repo_dir, 'deps.json')):
+		cmd = ['python', __file__, '-i', repo_dir, '-o', os.path.join(repo_dir, args.output if args.output else 'external'), '-r']
+		if args.force: cmd.push('-f')
+		print('$$ Fetching subdeps of \'' + name + '\'')
+		sys.stdout.flush()
+		subprocess.call(cmd)
 
 print('> Dependencies ready')
