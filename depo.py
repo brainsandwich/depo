@@ -39,13 +39,14 @@ def makepack(srcpath, buildpath, outpath, generator, parameters):
 	sys.stdout.flush()
 
 	# CMake configure command
-	configure_command = ['cmake', '-G' + generator, '-H' + srcpath, '-B' + buildpath, '-DCMAKE_INSTALL_PREFIX=' + outpath]
+	configure_command = ['cmake', '-G' + generator, '-H' + srcpath, '-B' + buildpath, '-DCMAKE_INSTALL_PREFIX=' + outpath, '-DCMAKE_DEBUG_POSTFIX=_d']
 	if parameters is not None:
 		for param in parameters:
 			configure_command.append('-D' + param)
 	subprocess.call(configure_command, stdout=console_out, stderr=console_out)
 
 	# CMake build command
+	subprocess.call(['cmake', '--build', buildpath, '--target', 'INSTALL', '--config', 'Debug'], stdout=console_out, stderr=console_out)
 	subprocess.call(['cmake', '--build', buildpath, '--target', 'INSTALL', '--config', 'Release'], stdout=console_out, stderr=console_out)
 
 	print('* Package \'' + name + ' ready.')
